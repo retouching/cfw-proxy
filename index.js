@@ -1,76 +1,59 @@
+/************************************************/
+/*                CONFIGURATION                 */
+/************************************************/
+
+const CORS_ORIGIN = 'https://example.com';
+const ACCESS_TOKEN = 'xxx';
+
+/************************************************/
+
 import { Router } from 'itty-router';
 
-// Create a new router
 const router = Router();
 
-/*
-Our index route, a simple hello world.
-*/
-router.get('/', () => {
-	return new Response('Hello, world! This is the root page of your Worker template.');
-});
-
-/*
-This route demonstrates path parameters, allowing you to extract fragments from the request
-URL.
-
-Try visit /example/hello and see the response.
-*/
-router.get('/example/:text', ({ params }) => {
-	// Decode text like "Hello%20world" into "Hello world"
-	let input = decodeURIComponent(params.text);
-
-	// Serialise the input into a base64 string
-	let base64 = btoa(input);
-
-	// Return the HTML with the string to the client
-	return new Response(`<p>Base64 encoding: <code>${base64}</code></p>`, {
+function asJSON(obj, status = 200) {
+	return new Response(JSON.stringify(obj, null, 2), {
+		status,
 		headers: {
-			'Content-Type': 'text/html',
-		},
+			'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Methods': 'GET,OPTIONS',
+      'Access-Control-Max-Age': '86400',
+			'Content-Type': 'application/json;charset=UTF-8'
+		}
+	});
+}
+
+function checkAuth({ query }) {
+	return query.authorization == ACCESS_TOKEN;
+}
+
+router.get('/', async (http) => {
+	if (!checkAuth(http)) return asJSON({ 'error': 'Forbidden' }, 403);
+
+	const { query } = http;
+
+	if (!query.url) return asJSON({ 'error': 'URL missing' }, 400);
+
+	let req = await fetch(query.url).catch(() => null);
+
+	if (!req || req.status > 299) return asJSON({ 'error': 'URL return invalid status code' }, 400);
+
+	const contentType = query.content_type || req.headers.get('Content-Type');
+	const { readable, writable } = new TransformStream();
+
+	req.body.pipeTo(writable);
+	return new Response(readable, {
+		headers: {
+			'Access-Control-Allow-Origin': CORS_ORIGIN,
+      'Access-Control-Allow-Methods': 'GET,OPTIONS',
+      'Access-Control-Max-Age': '86400',
+			'Content-Type': contentType || 'application/octet-stream',
+		}
 	});
 });
 
-/*
-This shows a different HTTP method, a POST.
+router.all('*', () => asJSON({
+	error: 'Not found'
+}, 404));
 
-Try send a POST request using curl or another tool.
-
-Try the below curl command to send JSON:
-
-$ curl -X POST <worker> -H "Content-Type: application/json" -d '{"abc": "def"}'
-*/
-router.post('/post', async request => {
-	// Create a base object with some fields.
-	let fields = {
-		asn: request.cf.asn,
-		colo: request.cf.colo,
-	};
-
-	// If the POST data is JSON then attach it to our response.
-	if (request.headers.get('Content-Type') === 'application/json') {
-		let json = await request.json();
-		Object.assign(fields, { json });
-	}
-
-	// Serialise the JSON to a string.
-	const returnData = JSON.stringify(fields, null, 2);
-
-	return new Response(returnData, {
-		headers: {
-			'Content-Type': 'application/json',
-		},
-	});
-});
-
-/*
-This is the last route we define, it will match anything that hasn't hit a route we've defined
-above, therefore it's useful as a 404 (and avoids us hitting worker exceptions, so make sure to include it!).
-
-Visit any page that doesn't exist (e.g. /foobar) to see it in action.
-*/
-router.all('*', () => new Response('404, not found!', { status: 404 }));
-
-export default {
-	fetch: router.handle,
-};
+export default { fetch: router.handle };
