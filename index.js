@@ -1,21 +1,13 @@
-/************************************************/
-/*                CONFIGURATION                 */
-/************************************************/
-
-const CORS_ORIGIN = 'https://example.com';
-const ACCESS_TOKEN = 'xxx';
-
-/************************************************/
-
 import { Router } from 'itty-router';
 
 const router = Router();
+let ENV = {};
 
 function asJSON(obj, status = 200) {
 	return new Response(JSON.stringify(obj, null, 2), {
 		status,
 		headers: {
-			'Access-Control-Allow-Origin': CORS_ORIGIN,
+			'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,OPTIONS',
       'Access-Control-Max-Age': '86400',
 			'Content-Type': 'application/json;charset=UTF-8'
@@ -23,13 +15,7 @@ function asJSON(obj, status = 200) {
 	});
 }
 
-function checkAuth({ query }) {
-	return query.authorization == ACCESS_TOKEN;
-}
-
 router.get('/', async (http) => {
-	if (!checkAuth(http)) return asJSON({ 'error': 'Forbidden' }, 403);
-
 	const { query } = http;
 
 	if (!query.url) return asJSON({ 'error': 'URL missing' }, 400);
@@ -44,7 +30,7 @@ router.get('/', async (http) => {
 	req.body.pipeTo(writable);
 	return new Response(readable, {
 		headers: {
-			'Access-Control-Allow-Origin': CORS_ORIGIN,
+			'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,OPTIONS',
       'Access-Control-Max-Age': '86400',
 			'Content-Type': contentType || 'application/octet-stream',
@@ -56,4 +42,6 @@ router.all('*', () => asJSON({
 	error: 'Not found'
 }, 404));
 
-export default { fetch: router.handle };
+export default {
+	fetch: router.handle
+};
