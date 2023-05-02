@@ -28,6 +28,7 @@ router.get('/', async ({ query, url }) => {
 	}
 
 	if (queryURL.host === new URL(url).host) return asJSON({ 'error': 'Invalid URL' }, 400);
+	if (!['http', 'https'].includes(queryURL.protocol.toLowerCase())) return asJSON({ 'error': 'Invalid URL' }, 400);
 
 	let req = await fetch(query.url).catch(() => null);
 
