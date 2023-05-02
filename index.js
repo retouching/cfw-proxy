@@ -15,10 +15,18 @@ function asJSON(obj, status = 200) {
 	});
 }
 
-router.get('/', async (http) => {
-	const { query } = http;
-
+router.get('/', async ({ query, url }) => {
 	if (!query.url) return asJSON({ 'error': 'URL missing' }, 400);
+
+	let queryURL;
+
+	try {
+		queryURL = new URL(query.url);
+	} catch (_) {
+		return asJSON({ 'error': 'Invalid URL' }, 400);
+	}
+
+	if (queryURL.host === new URL(url).host) return asJSON({ 'error': 'Invalid URL' }, 400);
 
 	let req = await fetch(query.url).catch(() => null);
 
