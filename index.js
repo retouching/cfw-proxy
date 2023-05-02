@@ -46,10 +46,8 @@ router.get('/', async ({ query, url }) => {
 		file += mime.getExtension(contentType) || 'unknown';
 	}
 
-	console.log(file.split('.').pop().toLocaleLowerCase());
-
-	if (enabledDisplay.includes(file.split('.').pop().toLocaleLowerCase())) {
-		headers = mime.getType(file.split('.').pop().toLocaleLowerCase());
+	if (enabledDisplay.includes(file.split('.').pop().toLowerCase())) {
+		headers = mime.getType(file.split('.').pop().toLowerCase());
 	}
 
 	req.body.pipeTo(writable);
