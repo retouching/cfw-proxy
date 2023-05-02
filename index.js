@@ -2,7 +2,7 @@ import { Router } from 'itty-router';
 import mime from 'mime';
 
 const router = Router();
-let ENV = {};
+const enabledDisplay = ['png', 'jpg', 'ogg', 'flac', 'wav', 'mp3', 'jpeg', 'gif'];
 
 function asJSON(obj, status = 200) {
 	return new Response(JSON.stringify(obj, null, 2), {
@@ -36,6 +36,7 @@ router.get('/', async ({ query, url }) => {
 	const { readable, writable } = new TransformStream();
 
 	let file = queryURL.pathname.split('?')[0].split('/').pop();
+	let headers = 'application/octet-stream';
 
 	if (file.length < 1) file = 'file';
 	if (file.startsWith('.')) file = `file${file}`;
@@ -45,14 +46,22 @@ router.get('/', async ({ query, url }) => {
 		file += mime.getExtension(contentType) || 'unknown';
 	}
 
+	console.log(file.split('.').pop().toLocaleLowerCase());
+
+	if (enabledDisplay.includes(file.split('.').pop().toLocaleLowerCase())) {
+		headers = mime.getType(file.split('.').pop().toLocaleLowerCase());
+	}
+
 	req.body.pipeTo(writable);
 	return new Response(readable, {
 		headers: {
 			'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,OPTIONS',
       'Access-Control-Max-Age': '86400',
-			'Content-Type': 'application/octet-stream',
-			'Content-Disposition': `attachment; filename=${file}`
+			'Content-Type': headers,
+			...(headers === 'application/octet-stream' ? {
+				'Content-Disposition': `attachment; filename=${file}`
+			} : {})
 		}
 	});
 });
