@@ -1,4 +1,5 @@
 import { Router } from 'itty-router';
+import mime from 'mime';
 
 const router = Router();
 let ENV = {};
@@ -32,8 +33,17 @@ router.get('/', async ({ query, url }) => {
 
 	if (!req || req.status > 299) return asJSON({ 'error': 'URL return invalid status code' }, 400);
 
-	const contentType = query.content_type || req.headers.get('Content-Type');
 	const { readable, writable } = new TransformStream();
+
+	let file = queryURL.pathname.split('?')[0].split('/').pop();
+
+	if (file.length < 1) file = 'file';
+	if (file.startsWith('.')) file = `file${file}`;
+	if (!file.includes('.')) file += '.';
+	if (file.split('').pop() === '.') {
+		const contentType = req.headers.get('Content-Type') || 'application/octet-stream';
+		file += mime.getExtension(contentType) || 'unknown';
+	}
 
 	req.body.pipeTo(writable);
 	return new Response(readable, {
@@ -41,7 +51,8 @@ router.get('/', async ({ query, url }) => {
 			'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,OPTIONS',
       'Access-Control-Max-Age': '86400',
-			'Content-Type': contentType || 'application/octet-stream',
+			'Content-Type': 'application/octet-stream',
+			'Content-Disposition': `attachment; filename=${file}`
 		}
 	});
 });
